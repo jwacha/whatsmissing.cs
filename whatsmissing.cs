@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -21,6 +21,7 @@ namespace whatsmissing
         {
             InitializeComponent();
             debug = new List<string>();
+            webBrowser.DocumentText = "<body bgcolor=\"silver\"></body>";
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -83,8 +84,7 @@ namespace whatsmissing
             for (int i = 0; i < matches.Length; i++ )
             {
                 if (matches[i])
-                {
-                    
+                {  
                     toPrint = toPrint + primarySource[i] + " ";
                 }// ends if
             }// ends for
@@ -93,7 +93,7 @@ namespace whatsmissing
 
         static public bool[] removeFalsePositives(bool[] boolsToCheck)
         {
-            bool trail0 = true;
+            bool trail0 = false;
             bool trail1 = true;
             bool trail2 = true;
             bool trail3 = true;
@@ -105,7 +105,7 @@ namespace whatsmissing
                 trail0 = boolsToCheck[i];
                 if (!trail0 && trail1 && !trail2){
                     boolsToCheck[i - 1] = false;
-                } else if (!trail0 && trail1 && trail2 && !trail3){
+                } else if (!trail0 && trail1 && trail2 && !trail3 && i > 3){
                     boolsToCheck[i - 1] = false;
                     boolsToCheck[i - 2] = false;
                 }
@@ -137,151 +137,171 @@ namespace whatsmissing
 
         private void compare_Click(object sender, EventArgs e)
         {
-            webBrowser.DocumentText = "";
-            string articleText = article.Text;
-            string primarySourceText = primarySource.Text;
-            string[] cleanPrimarySource = Regex.Split(primarySourceText.Trim(), @"\s+"); // to be crossed out and printed.
-            string pattern = @"\p{P}";
-            Regex regex = new Regex(pattern);
-            primarySourceText = regex.Replace(primarySourceText,"");
-            articleText = regex.Replace(articleText, "");
-            string[] primarySourceArray = Regex.Split(primarySourceText.Trim().ToLower(), @"\s+");
-            string[] articleTextArray = Regex.Split(articleText.Trim().ToLower(), @"\s+");
-            bool[] matches = new bool[primarySourceArray.Length];
-            for (int i = 0; i < matches.Length; i++)
+            if (article.Text != "" && primarySource.Text != "")
             {
-                matches[i] = false;
-            }
-            //string[] articleTextArray = articleText.Split(' ');
-            //articleText.Split();
-            indexTable = createIndexTable(primarySourceArray);
-            for (int positionInArticle = 0; positionInArticle < articleTextArray.Length; positionInArticle++)
-            {
-                if (indexTable.ContainsKey(articleTextArray[positionInArticle]))
+                string articleText = article.Text;
+                string primarySourceText = primarySource.Text;
+                string[] cleanPrimarySource = Regex.Split(primarySourceText.Trim(), @"\s+"); // to be crossed out and printed.
+                string pattern = @"\p{P}";
+                Regex regex = new Regex(pattern);
+                primarySourceText = regex.Replace(primarySourceText, "");
+                articleText = regex.Replace(articleText, "");
+                string[] primarySourceArray = Regex.Split(primarySourceText.Trim().ToLower(), @"\s+");
+                string[] articleTextArray = Regex.Split(articleText.Trim().ToLower(), @"\s+");
+                bool[] matches = new bool[primarySourceArray.Length];
+                for (int i = 0; i < matches.Length; i++)
                 {
-                    // we want to get all the indexes.
-                    foreach(int positionInPrimarySource in indexTable[articleTextArray[positionInArticle]]){
-                        //MessageBox.Show(positionInPrimarySource.ToString());
-                        int possibleMatchSize = 1;
-                        string segmentInPrimary = "";
-                        string segmentInArticle = "";
-                        int editDistance = 10000;
-                        do {
-                            segmentInPrimary = string.Join("",primarySourceArray,positionInPrimarySource,possibleMatchSize);
-                            segmentInArticle = string.Join("",articleTextArray,positionInArticle,possibleMatchSize);
-                            //string lastWordInPrimary = primarySourceArray[positionInPrimarySource + possibleMatchSize];
-                            int safeIndexInPrimary = positionInPrimarySource + possibleMatchSize;
-                            int safeIndexInArticle = positionInArticle + possibleMatchSize;
-                            if (safeIndexInPrimary >= primarySourceArray.Length){
-                                safeIndexInPrimary = primarySourceArray.Length - 1;
-                            }
-                            if (safeIndexInArticle >= articleTextArray.Length){
-                                safeIndexInArticle = articleTextArray.Length - 1;
-                            }
-                            string lastWordInPrimary = primarySourceArray[safeIndexInPrimary-1];
-                            //MessageBox.Show(lastWordInPrimary);
-                            string lastWordInArticle = articleTextArray[safeIndexInArticle-1];
-                            //MessageBox.Show("primary: " + segmentInPrimary + " " + "article: " + segmentInArticle);
-                            editDistance = lDistance(segmentInArticle,segmentInPrimary);
-
-                            if (possibleMatchSize >= 2 && (editDistance < 2 && // changed positionInArticle
-                                (lastWordInPrimary.Length + lastWordInArticle.Length != 3 && 
-                                primarySourceArray[positionInPrimarySource + possibleMatchSize].Length > editDistance)) ||
-                                (isSingleLetterWord(lastWordInArticle) && (string.Equals(lastWordInArticle,lastWordInPrimary))))
-                                {
-                                    if (string.Equals(lastWordInArticle, "in") || string.Equals(lastWordInPrimary, "in")){
-         //MessageBox.Show("article: "+lastWordInArticle+"primary: "+lastWordInPrimary);
-     }
-                                for (int i = positionInPrimarySource; i < positionInPrimarySource + possibleMatchSize && i < matches.Length; i++)
-                                {
-                                    matches[i] = true;
-                                 //   debug.Add(segmentInArticle + ":" + segmentInPrimary + ":" + i.ToString() + ",   ");
-                                    //MessageBox.Show("match");
-                                }// ends for
-                            }// ends if
-                            possibleMatchSize++;
-                        } while(editDistance < 2 && positionInArticle + possibleMatchSize < articleTextArray.Length && positionInPrimarySource + possibleMatchSize < primarySourceArray.Length);
-                        // this catches the last word.
-                        if (string.Equals(articleTextArray[articleTextArray.Length-1],primarySourceArray[primarySourceArray.Length-1])){
-                            matches[matches.Length - 1] = true;
-
-                        }
-                    }// we get 
-
-                }// ends if
-            }// ends for
-
-            //printArticleText(primarySourceArray);
-            //.outputMessageBox.Show("matches" + matches.Length + "primarysource" + cleanPrimarySource.Length);
-            matches = removeFalsePositives(matches);
-            string myHTML = printAsHtml(matches,cleanPrimarySource);
-            //output.Text = myHTML;
-            string stringToPutInBox = "";
-            //foreach (string stringToAdd in debug)
-            //{
-            //    stringToPutInBox = stringToPutInBox + stringToAdd;
-            //}
-            webBrowser.DocumentText = myHTML;
-            //webBrowser.DocumentText = stringToPutInBox;
-            HTMLToPublish = myHTML;
-            /*
-            foreach(string key in indexTable.Keys){
-                output.Text = output.Text + " " + key + "   " + string.Join(",",indexTable[key].ToArray());
-            }
-            */
-
-            /*
-            for (int i = 0; i < articleTextArray.Length; i++)
-            {
-                if(isSingleQuote(articleTextArray[i])){
-                    isInQuotes = !isInQuotes;
-                } else if(isQuoteOnBothSides(articleTextArray[i])) {
-
+                    matches[i] = false;
                 }
-                else if (isQuoteOnEnd(articleTextArray[i]))
+                //string[] articleTextArray = articleText.Split(' ');
+                //articleText.Split();
+                indexTable = createIndexTable(primarySourceArray);
+                for (int positionInArticle = 0; positionInArticle < articleTextArray.Length; positionInArticle++)
                 {
-
-                }
-                else if (isQuoteOnFront(articleTextArray[i]))
-                {
-
-                }
-            }// ends loop.
-             */
-
-
-            //string[] segments = articleText.Split("\"“”".ToCharArray());
-            //articleWord[] tokenizedArticle = new articleWord[articleTextArray.Length];
-
-
-
-            /*
-            Boolean quoteStarts = false;
-            quoteStarts = isSingleQuote(articleText.Substring(0,1));
-            List<string> segmentsToParse = new List<string>();
-            if(quoteStarts){
-                bool addThis = true;
-                for(int i = 0; i < segments.Length; i++){
-                    if (addThis)
+                    if (indexTable.ContainsKey(articleTextArray[positionInArticle]))
                     {
-                        segmentsToParse.Add(segments[i]);
-                    }
-                    addThis = !addThis;
+                        // we want to get all the indexes.
+                        foreach (int positionInPrimarySource in indexTable[articleTextArray[positionInArticle]])
+                        {
+                            //MessageBox.Show(positionInPrimarySource.ToString());
+                            int possibleMatchSize = 1;
+                            string segmentInPrimary = "";
+                            string segmentInArticle = "";
+                            int editDistance = 10000;
+                            do
+                            {
+                                segmentInPrimary = string.Join("", primarySourceArray, positionInPrimarySource, possibleMatchSize);
+                                segmentInArticle = string.Join("", articleTextArray, positionInArticle, possibleMatchSize);
+                                //string lastWordInPrimary = primarySourceArray[positionInPrimarySource + possibleMatchSize];
+                                int safeIndexInPrimary = positionInPrimarySource + possibleMatchSize;
+                                int safeIndexInArticle = positionInArticle + possibleMatchSize;
+                                if (safeIndexInPrimary >= primarySourceArray.Length)
+                                {
+                                    safeIndexInPrimary = primarySourceArray.Length - 1;
+                                }
+                                if (safeIndexInArticle >= articleTextArray.Length)
+                                {
+                                    safeIndexInArticle = articleTextArray.Length - 1;
+                                }
+                                string lastWordInPrimary = primarySourceArray[safeIndexInPrimary - 1];
+                                //MessageBox.Show(lastWordInPrimary);
+                                string lastWordInArticle = articleTextArray[safeIndexInArticle - 1];
+                                //MessageBox.Show("primary: " + segmentInPrimary + " " + "article: " + segmentInArticle);
+                                editDistance = lDistance(segmentInArticle, segmentInPrimary);
+
+                                if (possibleMatchSize >= 3 && (editDistance < 2 && // changed positionInArticle
+                                    (lastWordInPrimary.Length + lastWordInArticle.Length != 3 &&
+                                    primarySourceArray[positionInPrimarySource + possibleMatchSize].Length > editDistance)) ||
+                                    (isSingleLetterWord(lastWordInArticle) && (string.Equals(lastWordInArticle, lastWordInPrimary))))
+                                {
+                                    if (string.Equals(lastWordInArticle, "in") || string.Equals(lastWordInPrimary, "in"))
+                                    {
+                                        //MessageBox.Show("article: "+lastWordInArticle+"primary: "+lastWordInPrimary);
+                                    }
+                                    for (int i = positionInPrimarySource; i < positionInPrimarySource + possibleMatchSize && i < matches.Length; i++)
+                                    {
+                                        matches[i] = true;
+                                        //   debug.Add(segmentInArticle + ":" + segmentInPrimary + ":" + i.ToString() + ",   ");
+                                        //MessageBox.Show("match");
+                                    }// ends for
+                                }// ends if
+                                possibleMatchSize++;
+                            } while (editDistance < 3 && positionInArticle + possibleMatchSize < articleTextArray.Length && positionInPrimarySource + possibleMatchSize < primarySourceArray.Length);
+                            // this catches the last word.
+                            if (string.Equals(articleTextArray[articleTextArray.Length - 1], primarySourceArray[primarySourceArray.Length - 1]))
+                            {
+                                matches[matches.Length - 1] = true;
+                                // we need to make a sequence backward from the end. Then we need to 
+                            }
+                        }// we get 
+                    }// ends if
                 }// ends for
-            } else {
-                bool addThis = false;
-                for (int i = 0; i < segments.Length; i++)
-                {
-                    if (addThis)
-                    {
-                        segmentsToParse.Add(segments[i]);
-                    }
-                    addThis = !addThis;
-                }
-            }
-            printArticleText(segmentsToParse.ToArray<string>());
-             */
 
+                string LastWordOfLastSegment = articleTextArray[articleTextArray.Length-1];
+                //MessageBox.Show(LastWordOfLastSegment);
+                string lastSegmentToCheck = string.Join("",articleTextArray,articleTextArray.Length -3, 3);
+                //MessageBox.Show(lastSegmentToCheck);
+                if (indexTable.ContainsKey(LastWordOfLastSegment)){
+                foreach(int indexToExamine in indexTable[LastWordOfLastSegment]){
+                    if(indexToExamine > 3){
+                        string backWardsSegment = string.Join("",primarySourceArray,indexToExamine-2,3);
+                        if(string.Equals(backWardsSegment, lastSegmentToCheck)){
+                            matches[indexToExamine] = true;
+                        }
+                    }
+                }
+                }
+                //printArticleText(primarySourceArray);
+                //.outputMessageBox.Show("matches" + matches.Length + "primarysource" + cleanPrimarySource.Length);
+                matches = removeFalsePositives(matches);
+                string myHTML = printAsHtml(matches, cleanPrimarySource);
+                //output.Text = myHTML;
+                //string stringToPutInBox = "";
+                //foreach (string stringToAdd in debug)
+                //{
+                //    stringToPutInBox = stringToPutInBox + stringToAdd;
+                //}
+                webBrowser.DocumentText = myHTML;
+                //webBrowser.DocumentText = stringToPutInBox;
+                HTMLToPublish = myHTML;
+                /*
+                foreach(string key in indexTable.Keys){
+                    output.Text = output.Text + " " + key + "   " + string.Join(",",indexTable[key].ToArray());
+                }
+                */
+
+                /*
+                for (int i = 0; i < articleTextArray.Length; i++)
+                {
+                    if(isSingleQuote(articleTextArray[i])){
+                        isInQuotes = !isInQuotes;
+                    } else if(isQuoteOnBothSides(articleTextArray[i])) {
+
+                    }
+                    else if (isQuoteOnEnd(articleTextArray[i]))
+                    {
+
+                    }
+                    else if (isQuoteOnFront(articleTextArray[i]))
+                    {
+
+                    }
+                }// ends loop.
+                 */
+
+
+                //string[] segments = articleText.Split("\"“”".ToCharArray());
+                //articleWord[] tokenizedArticle = new articleWord[articleTextArray.Length];
+
+
+
+                /*
+                Boolean quoteStarts = false;
+                quoteStarts = isSingleQuote(articleText.Substring(0,1));
+                List<string> segmentsToParse = new List<string>();
+                if(quoteStarts){
+                    bool addThis = true;
+                    for(int i = 0; i < segments.Length; i++){
+                        if (addThis)
+                        {
+                            segmentsToParse.Add(segments[i]);
+                        }
+                        addThis = !addThis;
+                    }// ends for
+                } else {
+                    bool addThis = false;
+                    for (int i = 0; i < segments.Length; i++)
+                    {
+                        if (addThis)
+                        {
+                            segmentsToParse.Add(segments[i]);
+                        }
+                        addThis = !addThis;
+                    }
+                }
+                printArticleText(segmentsToParse.ToArray<string>());
+                 */
+            }
         }
 
         private void printArticleText(string[] textToPrint)
